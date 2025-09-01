@@ -1,0 +1,43 @@
+---
+title: "descriptives"
+author: "I. ten Klooster"
+date: "2025-09-01"
+output: html_document
+---
+
+```{r}
+library(readr) # for importing the csv file
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+Export_metrics <- read_delim("Export-metrics-intervention-4405-2.csv", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE)
+
+coach <- Export_metrics[4:14,]
+similarperson <- Export_metrics[17:27,]
+doctor<- Export_metrics[30:40,]
+text <- Export_metrics[43:49,]
+cartoon_disney <- Export_metrics[52:62,]
+cartoon_male <- Export_metrics[65:74,]
+```
+
+SC_1: coach
+SC_2: similar person (.1)
+SC_3: doctor (.2)
+SC_4: text ('ik vond de tekt...')
+SC_5: cartoon (disney) (.3)
+SC_6: cartoon (male) (.4)
+
+Voor de cartoon male is de laatste vraag missend (niet ingevoegd in TIIM).
+
+```{r data cleaning}
+
+```
+
