@@ -7,6 +7,11 @@ output: html_document
 
 ```{r}
 library(readr) # for importing the csv file
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(stringr)
+library(ggplot2)
 ```
 
 
@@ -15,29 +20,91 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-library(readr)
+
 Export_metrics <- read_delim("Export-metrics-intervention-4405-2.csv", 
     delim = "\t", escape_double = FALSE, 
     trim_ws = TRUE)
 
-coach <- Export_metrics[4:14,]
-similarperson <- Export_metrics[17:27,]
-doctor<- Export_metrics[30:40,]
-text <- Export_metrics[43:49,]
-cartoon_disney <- Export_metrics[52:62,]
-cartoon_male <- Export_metrics[65:74,]
+# definieer de blokken
+blokken <- list(
+  coach          = 4:14,
+  similarperson  = 17:27,
+  doctor         = 30:40,
+  text           = 43:49,
+  cartoon_disney = 52:62,
+  cartoon_male   = 65:74
+)
+
+# knip per blok en plak aan elkaar
+avatars <- map2_dfr(
+  blokken,
+  names(blokken),
+  ~ Export_metrics[.x, ] %>%
+      mutate(avatar = .y)
+)
+
 ```
-
-SC_1: coach
-SC_2: similar person (.1)
-SC_3: doctor (.2)
-SC_4: text ('ik vond de tekt...')
-SC_5: cartoon (disney) (.3)
-SC_6: cartoon (male) (.4)
-
-Voor de cartoon male is de laatste vraag missend (niet ingevoegd in TIIM).
 
 ```{r data cleaning}
-
+questions_long <- avatars %>%
+  pivot_longer(
+    cols = matches("^[0-9]+$"),
+    names_to = "participant_id",
+    values_to = "antwoord"
+  ) %>%
+  select(-contains("timestamp")) %>%
+  rename(question = `HealthBox - Pilot intervention`) %>%
+  mutate(
+    antwoord_num = case_when(
+      str_detect(antwoord, "^\\[1") ~ 1,
+      str_detect(antwoord, "^\\[2") ~ 2,
+      str_detect(antwoord, "^\\[3") ~ 3,
+      str_detect(antwoord, "^\\[4") ~ 4,
+      str_detect(antwoord, "^\\[5") ~ 5,
+      TRUE ~ NA_real_
+    )
+  ) %>%
+  mutate(
+    question = recode(question,
+                      'Ik vond de avatar deskundig (weet er veel van)' =
+                        'Ik vond de avatar deskundig',
+                      'Ik vond de avatar autoritair (professioneel, zegt wat ik moet doen)' =
+                        'Ik vond de avatar autoritair')
+  )
 ```
+
+Eerste observatie: voor de cartoon (male) is de laatste vraag missend (niet ingevoegd in TIIM).
+
+# Comparison between the different avatars per question
+```{r}
+questions_long %>%
+  filter(!str_detect(question, regex("tekst", ignore_case = TRUE))) %>%  # filter vragen die 'tekst' bevatten
+  ggplot(aes(x = question, y = antwoord_num, fill = avatar)) +
+  geom_boxplot(position = position_dodge(width = 0.8)) +
+  coord_flip() +
+  theme_minimal() +
+  labs(y = "Score", x = "Vraag", fill = "Avatar")
+```
+
+```{r}
+questions_long %>%
+  group_by(avatar, question) %>%
+  summarize(mean_answer = mean(antwoord_num, na.rm = TRUE),
+                            std = sd(antwoord_num ,na.rm = TRUE))
+```
+
+# Comparison of the mean ratings per avatar and the textual condition.
+Now we will have a look at the overall ratings per avatar and the standard deviations. We see that the 'similar person' avatar has the highest rating overall. The 'coach' avatar has the lowest rating overall.
+
+```{r}
+questions_long %>%
+  group_by(avatar) %>%
+  summarize(mean_answer = mean(antwoord_num, na.rm = TRUE),
+                            std = sd(antwoord_num ,na.rm = TRUE)) %>%
+  arrange(desc(mean_answer))
+```
+
+Now we will look into the general questions that were asked (eg whether they preferred textual or avatar and whether avatars can help them engage more with the technology).
+
+
 
